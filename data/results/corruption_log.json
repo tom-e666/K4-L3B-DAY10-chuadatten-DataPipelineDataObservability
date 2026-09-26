@@ -1,0 +1,147 @@
+{
+  "total_before": 24,
+  "total_after": 21,
+  "scenarios": [
+    {
+      "type": "drop_latest",
+      "description": "Drop 20% newest records",
+      "affected_count": 5,
+      "affected_records": [
+        {
+          "paper_id": "10.1145/3637528.3671812",
+          "title": "Continuous Benchmark Evaluation for Enterprise Retrieval Pipelines",
+          "published": "2026-07-22"
+        },
+        {
+          "paper_id": "10.1145/3637528.3671808",
+          "title": "Multi-Agent Consensus for High-Stakes Fact Verification",
+          "published": "2026-07-19"
+        },
+        {
+          "paper_id": "10.1145/3637528.3671804",
+          "title": "Freshness SLAs for Real-Time LLM Knowledge Augmentation",
+          "published": "2026-07-05"
+        },
+        {
+          "paper_id": "10.1145/3637528.3671807",
+          "title": "Synthetic Corruption Testing: Stress-Testing Vector Search Robustness",
+          "published": "2026-06-25"
+        },
+        {
+          "paper_id": "10.1145/3637528.3671802",
+          "title": "Data Observability and Quality Gates for Production RAG Systems",
+          "published": "2026-06-12"
+        }
+      ]
+    },
+    {
+      "type": "blank_summary",
+      "description": "Blank out summary text",
+      "affected_count": 2,
+      "affected_records": [
+        {
+          "paper_id": "10.1145/3637528.3671824",
+          "title": "Advanced Perspectives on Continuous Benchmark Evaluation for Enterprise Retrieval Pipelines"
+        },
+        {
+          "paper_id": "10.1145/3637528.3671823",
+          "title": "Advanced Perspectives on Hybrid Search Architectures: Combining BM25 with Dense Representations"
+        }
+      ]
+    },
+    {
+      "type": "inject_noise",
+      "description": "Inject noise characters into summary",
+      "affected_count": 2,
+      "affected_records": [
+        {
+          "paper_id": "10.1145/3637528.3671822",
+          "title": "Advanced Perspectives on Automated Data Quality Profiling with Great Expectations in CI/CD"
+        },
+        {
+          "paper_id": "10.1145/3637528.3671821",
+          "title": "Advanced Perspectives on Chunking Strategies for Technical Documentation Retrieval"
+        }
+      ]
+    },
+    {
+      "type": "truncate_title",
+      "description": "Truncate paper title to under 8 characters",
+      "affected_count": 2,
+      "affected_records": [
+        {
+          "paper_id": "10.1145/3637528.3671810",
+          "original_title": "Automated Data Quality Profiling with Great Expectations in CI/CD",
+          "corrupted_title": "Automat"
+        },
+        {
+          "paper_id": "10.1145/3637528.3671820",
+          "original_title": "Advanced Perspectives on Multi-Agent Consensus for High-Stakes Fact Verification",
+          "corrupted_title": "Advance"
+        }
+      ]
+    },
+    {
+      "type": "stale_date",
+      "description": "Push published date back by 365 days",
+      "affected_count": 8,
+      "affected_records": [
+        {
+          "paper_id": "10.1145/3637528.3671819",
+          "original_published": "2026-06-07",
+          "corrupted_published": "2025-06-07"
+        },
+        {
+          "paper_id": "10.1145/3637528.3671818",
+          "original_published": "2026-06-06",
+          "corrupted_published": "2025-06-06"
+        },
+        {
+          "paper_id": "10.1145/3637528.3671817",
+          "original_published": "2026-06-05",
+          "corrupted_published": "2025-06-05"
+        },
+        {
+          "paper_id": "10.1145/3637528.3671816",
+          "original_published": "2026-06-04",
+          "corrupted_published": "2025-06-04"
+        },
+        {
+          "paper_id": "10.1145/3637528.3671815",
+          "original_published": "2026-06-03",
+          "corrupted_published": "2025-06-03"
+        },
+        {
+          "paper_id": "10.1145/3637528.3671814",
+          "original_published": "2026-06-02",
+          "corrupted_published": "2025-06-02"
+        },
+        {
+          "paper_id": "10.1145/3637528.3671813",
+          "original_published": "2026-06-01",
+          "corrupted_published": "2025-06-01"
+        },
+        {
+          "paper_id": "10.1145/3637528.3671801",
+          "original_published": "2026-05-20",
+          "corrupted_published": "2025-05-20"
+        }
+      ]
+    },
+    {
+      "type": "duplicate_rows",
+      "description": "Duplicate rows to create duplicate paper_ids",
+      "affected_count": 2,
+      "affected_records": [
+        {
+          "paper_id": "10.1145/3637528.3671811",
+          "title": "Hybrid Search Architectures: Combining BM25 with Dense Representations"
+        },
+        {
+          "paper_id": "10.1145/3637528.3671806",
+          "title": "Semantic Layer Integration for Agentic Text-to-SQL Pipelines"
+        }
+      ]
+    }
+  ]
+}
