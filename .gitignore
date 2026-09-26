@@ -7,4 +7,4 @@ lab/
 **/__pycache__/
 doc_verification_report.md
 data
-src/ingestion
+src/ingestion/
