@@ -1,39 +1,35 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
+
 from core.utils import write_text
 
 
 def generate_phase1_report(
-    report_path,
+    report_path: Path,
     source_summary: dict[str, Any],
     metrics: dict[str, Any],
     quality: dict[str, Any],
     freshness: dict[str, Any],
 ) -> None:
-    """TODO(student): viet markdown report cho baseline phase.
-
-    Pseudo-code:
-    1. Gom source summary.
-    2. In metrics retrieval/evaluation.
-    3. In data quality va freshness.
-    4. Ghi markdown vao report_path.
-    """
+    """Generate Phase 1 Baseline markdown report."""
     content = f"""# Phase 1 Baseline Data Pipeline & Observability Report
 
 ## 1. Data Source Summary
 - **Source API:** {source_summary.get('source_api', 'Crossref REST API')}
 - **Total Records Ingested:** {source_summary.get('total_records', 'N/A')}
+- **Freshness Threshold:** {source_summary.get('freshness_threshold_days', 180)} days
 
 ## 2. Baseline Evaluation Metrics
 - **Retrieval Hit Rate:** {metrics.get('retrieval_hit_rate', 0.0):.4f}
 - **Mean Token F1:** {metrics.get('mean_token_f1', 0.0):.4f}
 - **Judge Accuracy:** {metrics.get('judge_accuracy', 0.0):.4f}
-- **Mean Judge Score:** {metrics.get('mean_judge_score', 0.0):.2f}
+- **Mean Judge Score:** {metrics.get('mean_judge_score', 0.0):.2f} / 5.0
 
-## 3. Data Observability & Quality Gate
+## 3. Data Quality and Freshness
 - **Quality Check Status:** {"PASSED" if quality.get('success') else "FAILED"}
-- **Passed Checks:** {quality.get('passed_checks', 0)} / {quality.get('total_checks', 0)}
+- **Passed Checks:** {quality.get('successful_expectations', quality.get('passed_checks', 0))} / {quality.get('evaluated_expectations', quality.get('total_checks', 0))}
 - **Freshness SLA Status:** {"FRESH" if freshness.get('is_fresh') else "STALE"}
 - **Stale Ratio (>180 days):** {freshness.get('stale_ratio', 0.0):.2%}
 - **Latest Published Date:** {freshness.get('latest_published', 'N/A')}
@@ -43,7 +39,7 @@ def generate_phase1_report(
 
 
 def generate_corruption_report(
-    report_path,
+    report_path: Path,
     baseline_metrics: dict[str, Any],
     corrupted_metrics: dict[str, Any],
     repaired_metrics: dict[str, Any],
@@ -52,33 +48,37 @@ def generate_corruption_report(
     corrupted_freshness: dict[str, Any],
     repaired_freshness: dict[str, Any],
 ) -> None:
-    """TODO(student): viet markdown report so sanh baseline/corrupted/repaired."""
-    hit_base = baseline_metrics.get("retrieval_hit_rate", 0.0)
-    hit_corr = corrupted_metrics.get("retrieval_hit_rate", 0.0)
-    hit_rep = repaired_metrics.get("retrieval_hit_rate", 0.0)
+    """Generate report comparing baseline, corrupted, and repaired states."""
+    metric_keys = (
+        ("Retrieval Hit Rate", "retrieval_hit_rate", ".4f"),
+        ("Mean Token F1", "mean_token_f1", ".4f"),
+        ("Judge Accuracy", "judge_accuracy", ".4f"),
+        ("Mean Judge Score", "mean_judge_score", ".2f"),
+    )
 
-    f1_base = baseline_metrics.get("mean_token_f1", 0.0)
-    f1_corr = corrupted_metrics.get("mean_token_f1", 0.0)
-    f1_rep = repaired_metrics.get("mean_token_f1", 0.0)
+    rows = []
+    for label, key, number_format in metric_keys:
+        baseline = baseline_metrics.get(key, 0.0)
+        corrupted = corrupted_metrics.get(key, 0.0)
+        repaired = repaired_metrics.get(key, 0.0)
+        rows.append(
+            f"| **{label}** | `{baseline:{number_format}}` "
+            f"| `{corrupted:{number_format}}` | `{repaired:{number_format}}` |"
+        )
 
-    acc_base = baseline_metrics.get("judge_accuracy", 0.0)
-    acc_corr = corrupted_metrics.get("judge_accuracy", 0.0)
-    acc_rep = repaired_metrics.get("judge_accuracy", 0.0)
+    content = f"""# Data Corruption and Repair Report
 
-    content = f"""# Data Corruption & Self-Healing Comparison Report
+## 1. Performance Comparison
 
-## 1. 3-State Performance Comparison Matrix
+| Metric | Baseline | Corrupted | Repaired |
+|---|---:|---:|---:|
+{chr(10).join(rows)}
+| **Quality Checks** | `PASS` | `{'PASS' if corrupted_quality.get('success') else 'FAIL'}` | `{'PASS' if repaired_quality.get('success') else 'FAIL'}` |
+| **Freshness** | `N/A` | `{'FRESH' if corrupted_freshness.get('is_fresh') else 'STALE'}` | `{'FRESH' if repaired_freshness.get('is_fresh') else 'STALE'}` |
 
-| Metric / Signal | Baseline | Corrupted | Repaired | Change (Corruption) | Recovery |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Retrieval Hit Rate** | {hit_base:.4f} | {hit_corr:.4f} | {hit_rep:.4f} | {hit_corr - hit_base:+.4f} | {hit_rep - hit_corr:+.4f} |
-| **Mean Token F1** | {f1_base:.4f} | {f1_corr:.4f} | {f1_rep:.4f} | {f1_corr - f1_base:+.4f} | {f1_rep - f1_corr:+.4f} |
-| **Judge Accuracy** | {acc_base:.4f} | {acc_corr:.4f} | {acc_rep:.4f} | {acc_corr - acc_base:+.4f} | {acc_rep - acc_corr:+.4f} |
-| **Data Quality Status** | PASSED | {"PASSED" if corrupted_quality.get('success') else "FAILED"} | {"PASSED" if repaired_quality.get('success') else "FAILED"} | Impacted | Recovered |
-| **Freshness SLA Status** | FRESH | {"FRESH" if corrupted_freshness.get('is_fresh') else "STALE"} | {"FRESH" if repaired_freshness.get('is_fresh') else "STALE"} | Impacted | Recovered |
-
-## 2. Causal Analysis & Findings
-1. **Silent Failure Impact:** Data corruption causes significant performance degradation in Retrieval Hit Rate and Token F1, triggering Data Quality & Freshness alerts.
-2. **Self-Healing Recovery:** Idempotent Repair from raw snapshots restores Data Quality validation and returns RAG Agent evaluation metrics back to Baseline performance.
+## 2. Findings
+- Corruption can reduce retrieval and answer quality without causing a runtime error.
+- Quality checks detect corrupted data before it is used.
+- Repair from the trusted raw snapshot should restore data quality and agent metrics.
 """
     write_text(report_path, content)

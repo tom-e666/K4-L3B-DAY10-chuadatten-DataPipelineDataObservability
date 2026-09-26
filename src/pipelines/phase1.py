@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from core.config import Settings, load_settings
@@ -18,27 +19,37 @@ def run_phase1_pipeline(settings: Settings | None = None) -> dict[str, Any]:
     if settings is None:
         settings = load_settings()
 
-    # 1. Ingest
+    # 1. Thu thập dữ liệu
     records = fetch_source_records(settings)
 
-    # 2. Clean
-    clean_df = build_clean_dataframe(records, run_date=datetime.now(timezone.utc))
+    # 2. Làm sạch và lưu dữ liệu
+    clean_df = build_clean_dataframe(
+        records,
+        run_date=datetime.now(timezone.utc),
+    )
+
     ensure_parent(settings.paths.clean_csv)
     clean_df.to_csv(settings.paths.clean_csv, index=False)
-    ensure_parent(settings.paths.clean_json)
-    clean_df.to_json(settings.paths.clean_json, orient="records", indent=2, force_ascii=False)
 
-    # 3. Index ChromaDB
+    ensure_parent(settings.paths.clean_json)
+    clean_df.to_json(
+        settings.paths.clean_json,
+        orient="records",
+        indent=2,
+        force_ascii=False,
+    )
+
+    # 3. Tạo vector index
     index = LocalEmbeddingIndex.build(
         clean_df,
         settings=settings,
         embeddings_output_path=settings.paths.embeddings_json,
     )
 
-    # 4. Sinh Testset
-    build_test_set(clean_df, settings.paths.eval_testset)
+    # 4. Tạo evaluation test set
+    test_set = build_test_set(clean_df, settings.paths.eval_testset)
 
-    # 5. Đánh giá Baseline RAG Hit Rate & Token F1
+    # 5. Đánh giá baseline
     bundle = evaluate_pipeline(
         settings=settings,
         index=index,
@@ -47,14 +58,25 @@ def run_phase1_pipeline(settings: Settings | None = None) -> dict[str, Any]:
         answers_output_path=settings.paths.baseline_answers,
     )
 
-    # 6. Great Expectations Quality Gate và xuất báo cáo phase1_report.md
-    quality = run_data_quality_checks(clean_df, settings=settings, report_name="baseline")
-    freshness = build_freshness_report(clean_df, settings=settings, report_path=settings.paths.freshness_report)
+    # 6. Kiểm tra chất lượng và freshness
+    quality = run_data_quality_checks(
+        clean_df,
+        settings=settings,
+        report_name="baseline",
+    )
+    freshness = build_freshness_report(
+        clean_df,
+        settings=settings,
+        report_path=settings.paths.freshness_report,
+    )
 
+    # 7. Tạo báo cáo
     source_summary = {
         "source_api": settings.source_api,
-        "total_records": len(clean_df),
+        "total_records": len(records),
+        "freshness_threshold_days": settings.freshness_threshold_days,
     }
+
     ensure_parent(settings.paths.baseline_report)
     generate_phase1_report(
         report_path=settings.paths.baseline_report,
@@ -65,23 +87,33 @@ def run_phase1_pipeline(settings: Settings | None = None) -> dict[str, Any]:
     )
 
     print(f"[Phase 1] Ingested: {len(records)} records")
-    print(f"[Phase 1] Cleaned: {len(clean_df)} records -> {settings.paths.clean_csv}")
-    print(f"[Phase 1] Indexed ChromaDB: {len(index.documents)} docs")
-    print(f"[Phase 1] Baseline Hit Rate: {bundle.summary.get('retrieval_hit_rate', 0.0):.4f}")
-    print(f"[Phase 1] Baseline Token F1: {bundle.summary.get('mean_token_f1', 0.0):.4f}")
-    print(f"[Phase 1] Quality Gate Status: {quality.get('success')}")
-    print(f"[Phase 1] Freshness Status: {freshness.get('is_fresh')}")
-    print(f"[Phase 1] Report generated at: {settings.paths.baseline_report}")
+    print(f"[Phase 1] Cleaned: {len(clean_df)} records")
+    print(f"[Phase 1] Test questions: {len(test_set)}")
+    print(
+        f"[Phase 1] Baseline Hit Rate: "
+        f"{bundle.summary.get('retrieval_hit_rate', 0.0):.4f}"
+    )
+    print(
+        f"[Phase 1] Baseline Token F1: "
+        f"{bundle.summary.get('mean_token_f1', 0.0):.4f}"
+    )
+    print(f"[Phase 1] Quality Gate: {quality.get('success')}")
+    print(f"[Phase 1] Freshness: {freshness.get('is_fresh')}")
+    print(f"[Phase 1] Report: {settings.paths.baseline_report}")
 
     return {
         "metrics": bundle.summary,
         "quality": quality,
         "freshness": freshness,
         "cleaned_records": len(clean_df),
+        "test_questions": len(test_set),
+        "report_path": str(settings.paths.baseline_report),
     }
 
 
 def main() -> None:
-    settings = load_settings()
-    run_phase1_pipeline(settings)
+    run_phase1_pipeline(load_settings())
 
+
+if __name__ == "__main__":
+    main()
