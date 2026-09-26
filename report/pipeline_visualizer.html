@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google Cloud Vertex AI — Interactive Data & Pipeline Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto+Mono:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --gcp-blue: #1a73e8;
+      --gcp-blue-hover: #1557b0;
+      --gcp-green: #34a853;
+      --gcp-red: #ea4335;
+      --gcp-yellow: #fbbc04;
+      --bg-dark: #0f172a;
+      --bg-surface: #1e293b;
+      --bg-surface-hover: #28374d;
+      --border-color: #334155;
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      --text-muted: #64748b;
+      --font-sans: 'Google Sans', 'Roboto', sans-serif;
+      --font-mono: 'Roboto Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-dark);
+      color: var(--text-main);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Google Cloud Header */
+    header {
+      background: #1e293b;
+      height: 52px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .gcp-logo {
+      width: 26px;
+      height: 26px;
+      background: linear-gradient(135deg, #4285f4, #34a853, #fbbc05, #ea4335);
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: white;
+      font-size: 14px;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 500;
+      color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-sub {
+      color: var(--text-sub);
+      font-size: 13px;
+      font-weight: 400;
+    }
+
+    .header-chips {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .status-chip {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-chip.success { background: rgba(52, 168, 83, 0.15); color: #4ade80; border: 1px solid rgba(52, 168, 83, 0.4); }
+    .status-chip.info { background: rgba(26, 115, 232, 0.15); color: #60a5fa; border: 1px solid rgba(26, 115, 232, 0.4); }
+
+    /* Main Split View: Left (DAG Flow) + Right (Real Data Inspector) */
+    .app-body {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Left Canvas Area */
+    .dag-pane {
+      flex: 1;
+      overflow-y: auto;
+      background-image: radial-gradient(#334155 1.2px, transparent 1.2px);
+      background-size: 24px 24px;
+      padding: 30px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .section-desc {
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-bottom: 14px;
+    }
+
+    /* Step Flow Cards */
+    .flow-step-card {
+      background: var(--bg-surface);
+      border: 1.5px solid var(--border-color);
+      border-radius: 10px;
+      padding: 16px 18px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+
+    .flow-step-card:hover {
+      background: var(--bg-surface-hover);
+      border-color: #38bdf8;
+      transform: translateY(-2px);
+    }
+
+    .flow-step-card.active {
+      border-color: #38bdf8;
+      background: #19273f;
+      box-shadow: 0 0 0 2px #38bdf8, 0 10px 20px rgba(14, 165, 233, 0.25);
+    }
+
+    .flow-step-card.corrupt-card {
+      border-left: 4px solid var(--gcp-red);
+    }
+
+    .flow-step-card.repair-card {
+      border-left: 4px solid var(--gcp-green);
+    }
+
+    .flow-step-card.normal-card {
+      border-left: 4px solid var(--gcp-blue);
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .card-tag {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: #38bdf8;
+    }
+
+    .card-status-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .badge-ok { background: rgba(52, 168, 83, 0.2); color: #4ade80; border: 1px solid #34a853; }
+    .badge-fail { background: rgba(234, 67, 53, 0.2); color: #f87171; border: 1px solid #ea4335; }
+    .badge-heal { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid #a855f7; }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #f8fafc;
+      margin-bottom: 4px;
+    }
+
+    .card-desc {
+      font-size: 13px;
+      color: var(--text-sub);
+      line-height: 1.4;
+      margin-bottom: 10px;
+    }
+
+    .card-metrics-row {
+      display: flex;
+      gap: 16px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+    }
+
+    .metric-item span.label { color: #64748b; margin-right: 4px; }
+    .metric-item span.val { color: #f1f5f9; font-weight: 600; }
+    .metric-item span.val.green { color: #4ade80; }
+    .metric-item span.val.red { color: #f87171; }
+
+    /* Flow connector line between cards */
+    .flow-arrow-down {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 22px;
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    /* Right Inspector Pane (Always docked, no layout clash) */
+    .inspector-pane {
+      width: 580px;
+      background: #111827;
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      box-shadow: -6px 0 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .inspector-header {
+      padding: 16px 20px;
+      background: #192336;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .inspector-header h2 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f8fafc;
+      margin-bottom: 2px;
+    }
+
+    .inspector-header span {
+      font-size: 12px;
+      font-family: var(--font-mono);
+      color: #38bdf8;
+    }
+
+    /* Tabs inside Inspector */
+    .inspector-nav {
+      display: flex;
+      background: #0f172a;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .nav-tab-btn {
+      flex: 1;
+      padding: 10px 12px;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-sub);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .nav-tab-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.03); }
+    .nav-tab-btn.active { color: #38bdf8; border-bottom-color: #38bdf8; background: rgba(56, 189, 248, 0.05); }
+
+    .inspector-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Real Data Table Preview */
+    .data-table-container {
+      background: #090e17;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      overflow-x: auto;
+      max-height: 480px;
+    }
+
+    table.data-preview-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+
+    table.data-preview-table th {
+      background: #1e293b;
+      padding: 10px 12px;
+      color: #94a3b8;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      border-bottom: 1px solid #334155;
+      white-space: nowrap;
+    }
+
+    table.data-preview-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      color: #cbd5e1;
+      vertical-align: top;
+    }
+
+    table.data-preview-table tr:hover { background: rgba(255, 255, 255, 0.02); }
+
+    .json-code {
+      background: #090e17;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 14px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.5;
+      color: #38bdf8;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+
+    .info-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-row span.k { color: #94a3b8; }
+    .info-row span.v { font-family: var(--font-mono); font-weight: 500; color: #f1f5f9; text-align: right; }
+
+    .pill-hit {
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 11px;
+    }
+    .pill-hit.hit-true { background: rgba(52, 168, 83, 0.2); color: #4ade80; border: 1px solid #34a853; }
+    .pill-hit.hit-false { background: rgba(234, 67, 53, 0.2); color: #f87171; border: 1px solid #ea4335; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Google Cloud Header -->
+  <header>
+    <div class="brand">
+      <div class="gcp-logo">G</div>
+      <div class="brand-title">
+        Google Cloud Vertex AI Pipelines
+        <span class="brand-sub">/ DataObservability / Day10-chuadatten / baseline-vs-self-healing</span>
+      </div>
+    </div>
+    <div class="header-chips">
+      <div class="status-chip success">● Pipeline Succeeded (100% Healed)</div>
+      <div class="status-chip info">ChromaDB + GX 1.x Active</div>
+    </div>
+  </header>
+
+  <!-- Split View -->
+  <div class="app-body">
+    
+    <!-- LEFT: 5 Core Pipeline Stages Flowchart (No Clutter, Clean & Focused) -->
+    <div class="dag-pane">
+      
+      <div>
+        <div class="section-title">
+          <span>Chu Trình Dữ Liệu Thực Nghiệm (5 Giai Đoạn Cốt Lõi)</span>
+        </div>
+        <div class="section-desc">
+          Bấm vào từng khối bên dưới để bảng bên phải mở ra <strong>dữ liệu thực tế (bảng records, câu hỏi Q&A, log lỗi, JSON metrics)</strong> tương ứng!
+        </div>
+      </div>
+
+      <!-- STAGE 1: INGESTION -->
+      <div class="flow-step-card normal-card active" id="card-stage1" onclick="selectStage(1)">
+        <div class="card-top">
+          <span class="card-tag">GIAI ĐOẠN 1 • INGESTION & STORAGE</span>
+          <span class="card-status-badge badge-ok">✓ ĐÃ LƯU SNAPSHOT</span>
+        </div>
+        <div class="card-title">1. Thu Thập API Crossref & Lưu Két Sắt Thô (SSOT)</div>
+        <div class="card-desc">
+          Tải 24 bài báo học thuật mới nhất từ Crossref REST API. Lưu bản snapshot thô bất biến <code>crossref_records.json</code> làm Single Source of Truth cho cơ chế tự phục hồi sau này.
+        </div>
+        <div class="card-metrics-row">
+          <div class="metric-item"><span class="label">Nguồn:</span><span class="val">Crossref API</span></div>
+          <div class="metric-item"><span class="label">Bản ghi:</span><span class="val green">24 records</span></div>
+          <div class="metric-item"><span class="label">Artifact:</span><span class="val">crossref_records.json (18.4 KB)</span></div>
+        </div>
+      </div>
+
+      <div class="flow-arrow-down">⬇️ Dữ liệu thô chuyển qua bộ lọc làm sạch</div>
+
+      <!-- STAGE 2: CLEANING & CHROMADB -->
+      <div class="flow-step-card normal-card" id="card-stage2" onclick="selectStage(2)">
+        <div class="card-top">
+          <span class="card-tag">GIAI ĐOẠN 2 • CLEANING & VECTOR EMBEDDING</span>
+          <span class="card-status-badge badge-ok">✓ ĐÃ INDEX CHROMADB</span>
+        </div>
+        <div class="card-title">2. Làm Sạch Dữ Liệu & Nạp Vector Store ChromaDB</div>
+        <div class="card-desc">
+          Lọc sạch thẻ HTML/JATS, khử trùng lặp theo paper_id, tính số ngày tuổi <code>age_days</code> và ghép văn bản <code>text_for_embedding</code>. Mã hóa thành vector 384 chiều (all-MiniLM-L6-v2) vào collection <code>papers-baseline</code>.
+        </div>
+        <div class="card-metrics-row">
+          <div class="metric-item"><span class="label">Dữ liệu sạch:</span><span class="val green">24 dòng</span></div>
+          <div class="metric-item"><span class="label">Vector Dim:</span><span class="val">384-d Cosine</span></div>
+          <div class="metric-item"><span class="label">File sạch:</span><span class="val">papers_clean.csv</span></div>
+        </div>
+      </div>
+
+      <div class="flow-arrow-down">⬇️ Dữ liệu sạch đưa vào đánh giá nền & kiểm định chất lượng</div>
+
+      <!-- STAGE 3: BASELINE BENCHMARK & GX -->
+      <div class="flow-step-card normal-card" id="card-stage3" onclick="selectStage(3)">
+        <div class="card-top">
+          <span class="card-tag">GIAI ĐOẠN 3 • BASELINE EVALUATION & DATA OBSERVABILITY</span>
+          <span class="card-status-badge badge-ok">✓ HIT RATE 100% • GX PASSED</span>
+        </div>
+        <div class="card-title">3. Đánh Giá AI RAG Nền & Chốt Kiểm Dịch Great Expectations</div>
+        <div class="card-desc">
+          Tự động sinh 10 câu hỏi benchmark (tóm tắt, tác giả, ngày công bố, danh mục). Cho AI trả lời và kiểm định qua 6 hàng rào Great Expectations (row count, unique, min length) cùng Freshness SLA.
+        </div>
+        <div class="card-metrics-row">
+          <div class="metric-item"><span class="label">Retrieval Hit Rate:</span><span class="val green">1.0000 (10/10)</span></div>
+          <div class="metric-item"><span class="label">Mean Token F1:</span><span class="val green">1.0000</span></div>
+          <div class="metric-item"><span class="label">Quality Gate:</span><span class="val green">PASSED (6/6 checks)</span></div>
+          <div class="metric-item"><span class="label">Freshness:</span><span class="val green">FRESH (4.17%)</span></div>
+        </div>
+      </div>
+
+      <div class="flow-arrow-down">⬇️ Giả lập sự cố sản xuất (Tiêm dữ liệu bẩn)</div>
+
+      <!-- STAGE 4: CORRUPTION & SILENT FAILURE -->
+      <div class="flow-step-card corrupt-card" id="card-stage4" onclick="selectStage(4)">
+        <div class="card-top">
+          <span class="card-tag" style="color:#f87171;">GIAI ĐOẠN 4 • DATA CORRUPTION (SILENT FAILURE)</span>
+          <span class="card-status-badge badge-fail">✕ HIT RATE GIẢM 50% • ALARM FAILED</span>
+        </div>
+        <div class="card-title">4. Tiêm 6 Dạng Lỗi Dữ Liệu & Hiện Tượng Silent Failure</div>
+        <div class="card-desc">
+          Tiêm 6 lỗi: Bỏ rơi 20% bài mới, xóa tóm tắt, chèn chuỗi rác, cắt ngắn title &lt; 8 ký tự, lùi ngày về quá khứ, nhân bản dòng. Hệ thống AI không crash nhưng câu trả lời bị sai/rỗng, Hit Rate sụt 50%!
+        </div>
+        <div class="card-metrics-row">
+          <div class="metric-item"><span class="label">Lỗi tiêm:</span><span class="val red">6 Kịch bản</span></div>
+          <div class="metric-item"><span class="label">Retrieval Hit Rate:</span><span class="val red">0.5000 (-50%)</span></div>
+          <div class="metric-item"><span class="label">Mean Token F1:</span><span class="val red">0.8506</span></div>
+          <div class="metric-item"><span class="label">GX Gate:</span><span class="val red">FAILED</span></div>
+          <div class="metric-item"><span class="label">Freshness:</span><span class="val red">STALE (38.1%)</span></div>
+        </div>
+      </div>
+
+      <div class="flow-arrow-down">⬇️ Kích hoạt cơ chế tự phục hồi từ Raw Snapshot</div>
+
+      <!-- STAGE 5: REPAIR & RECOVERY -->
+      <div class="flow-step-card repair-card" id="card-stage5" onclick="selectStage(5)">
+        <div class="card-top">
+          <span class="card-tag" style="color:#4ade80;">GIAI ĐOẠN 5 • IDEMPOTENT REPAIR & 100% RECOVERY</span>
+          <span class="card-status-badge badge-heal">↺ HOÀN PHỤC 100%</span>
+        </div>
+        <div class="card-title">5. Tự Phục Hồi Idempotent & Lấy Lại Toàn Bộ Phong Độ</div>
+        <div class="card-desc">
+          Không vá chắp vá: Tự động đọc lại snapshot thô ở Bước 1, chạy lại quy trình chuẩn hóa sạch, tạo mới collection <code>papers-repaired</code>. Toàn bộ các chỉ số Hit Rate, Token F1 và Quality Gate phục hồi về 100%!
+        </div>
+        <div class="card-metrics-row">
+          <div class="metric-item"><span class="label">Nguồn phục hồi:</span><span class="val">crossref_records.json</span></div>
+          <div class="metric-item"><span class="label">Hit Rate Recovery:</span><span class="val green">1.0000 (+0.5000)</span></div>
+          <div class="metric-item"><span class="label">Mean Token F1:</span><span class="val green">1.0000 (+0.1494)</span></div>
+          <div class="metric-item"><span class="label">Quality Gate:</span><span class="val green">PASSED (Khôi phục)</span></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: Real Data Inspector Pane (No Overlay, Tabbed, Real Concrete Records) -->
+    <div class="inspector-pane">
+      
+      <div class="inspector-header">
+        <div>
+          <h2 id="ins-title">1. Thu Thập API Crossref & Lưu Két Sắt Thô</h2>
+          <span id="ins-sub">INGESTION & SNAPSHOT LAYER</span>
+        </div>
+      </div>
+
+      <!-- 3 Real Data Tabs -->
+      <div class="inspector-nav">
+        <button class="nav-tab-btn active" id="tab-btn-data" onclick="setInspectorTab('data')">📋 Bảng Dữ Liệu Thật</button>
+        <button class="nav-tab-btn" id="tab-btn-metrics" onclick="setInspectorTab('metrics')">📊 Metrics & Tín Hiệu</button>
+        <button class="nav-tab-btn" id="tab-btn-code" onclick="setInspectorTab('code')">💻 Code Thực Thi</button>
+      </div>
+
+      <div class="inspector-content" id="ins-content">
+        <!-- Rendered dynamically -->
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    // REAL LIVE DATA EXTRACTED FROM PROJECT ARTIFACTS
+    const LIVE_DATA = {
+      1: {
+        title: "1. Thu Thập API Crossref & Raw Snapshot",
+        sub: "INGESTION & STORAGE • data/raw/crossref_records.json",
+        summary: "Dữ liệu 24 bài báo khoa học thực tế được tải về và lưu vào file data/raw/crossref_records.json làm két sắt dữ liệu gốc.",
+        tableHeaders: ["DOI / Paper ID", "Tiêu Đề Bài Báo", "Ngày Xuất Bản", "Tác Giả Chính"],
+        tableRows: [
+          ["10.1145/3637528.3671812", "Continuous Benchmark Evaluation for Enterprise Retrieval Pipelines", "2026-07-22", "Quang Le, Yen Vu"],
+          ["10.1145/3637528.3671808", "Multi-Agent Consensus for High-Stakes Fact Verification", "2026-07-19", "Phong Vu, Ngan Hoang"],
+          ["10.1145/3637528.3671804", "Freshness SLAs for Real-Time LLM Knowledge Augmentation", "2026-07-05", "Bao Do, Linh Ngo"],
+          ["10.1145/3637528.3671807", "Synthetic Corruption Testing: Stress-Testing Vector Search Robustness", "2026-06-25", "Tuan Phan, Mai Bui"],
+          ["10.1145/3637528.3671802", "Data Observability and Quality Gates for Production RAG Systems", "2026-06-12", "An Tran, Minh Nguyen"],
+          ["10.1145/3637528.3671824", "Advanced Perspectives on Continuous Benchmark Evaluation...", "2026-06-12", "Quang Le, Yen Vu"],
+          ["10.1145/3637528.3671823", "Advanced Perspectives on Hybrid Search Architectures...", "2026-06-11", "Duc Tran, Huong Pham"],
+          ["10.1145/3637528.3671822", "Advanced Perspectives on Automated Data Quality Profiling...", "2026-06-10", "Son Nguyen, Thuy Doan"]
+        ],
+        metrics: {
+          "Tổng bản ghi tải về": "24 records",
+          "Dung lượng lưu trữ thô": "18,378 bytes (JSON)",
+          "Trường dữ liệu": "DOI, title, abstract, author, subject, published, URL",
+          "Cơ chế dự phòng": "Local snapshot fallback khi dính lỗi 429 hoặc offline"
+        },
+        code: `def fetch_source_records(settings: Settings) -> list[PaperRecord]:
+    # Gửi request đến Crossref REST API
+    # Phân tích các trường metadata và lưu snapshot bất biến
+    write_json(settings.paths.raw_records_json, [asdict(r) for r in records])
+    return records`
+      },
+      2: {
+        title: "2. Dữ Liệu Sạch & ChromaDB Vector Store",
+        sub: "TRANSFORM & VECTOR EMBEDDING • data/clean/papers_clean.csv",
+        summary: "Dữ liệu sau khi làm sạch: loại bỏ HTML tag, tính age_days và ghép text_for_embedding chuẩn để nạp vector 384 chiều vào ChromaDB.",
+        tableHeaders: ["Paper ID", "Tiêu Đề", "Tuổi (age_days)", "Độ dài tóm tắt", "Text For Embedding Preview"],
+        tableRows: [
+          ["10.1145/3637528.3671812", "Continuous Benchmark Evaluation...", "66 ngày", "193 chars", "Title: Continuous Benchmark Evaluation...\nAuthors: Quang Le..."],
+          ["10.1145/3637528.3671808", "Multi-Agent Consensus for Fact Verification...", "69 ngày", "203 chars", "Title: Multi-Agent Consensus...\nAuthors: Phong Vu..."],
+          ["10.1145/3637528.3671804", "Freshness SLAs for Real-Time LLM...", "83 ngày", "205 chars", "Title: Freshness SLAs...\nAuthors: Bao Do..."],
+          ["10.1145/3637528.3671807", "Synthetic Corruption Testing...", "93 ngày", "203 chars", "Title: Synthetic Corruption Testing...\nAuthors: Tuan..."],
+          ["10.1145/3637528.3671802", "Data Observability and Quality Gates...", "106 ngày", "211 chars", "Title: Data Observability and Quality Gates..."],
+          ["10.1145/3637528.3671824", "Advanced Perspectives on Continuous...", "106 ngày", "266 chars", "Title: Advanced Perspectives on Continuous..."],
+          ["10.1145/3637528.3671823", "Advanced Perspectives on Hybrid Search...", "107 ngày", "283 chars", "Title: Advanced Perspectives on Hybrid..."],
+          ["10.1145/3637528.3671822", "Advanced Perspectives on Automated...", "108 ngày", "272 chars", "Title: Advanced Perspectives on Automated..."]
+        ],
+        metrics: {
+          "Số dòng sạch xuất ra": "24 dòng (không có dòng trùng)",
+          "Vector Collection": "papers-baseline (ChromaDB)",
+          "Embedding Model": "sentence-transformers/all-MiniLM-L6-v2",
+          "Số chiều vector": "384 float32",
+          "Không gian tìm kiếm": "Cosine Distance (HNSW)"
+        },
+        code: `clean_df = build_clean_dataframe(records, run_date=datetime.now(timezone.utc))
+clean_df.to_csv(settings.paths.clean_csv, index=False)
+index = LocalEmbeddingIndex.build(clean_df, settings)`
+      },
+      3: {
+        title: "3. Kết Quả Benchmark 10 Câu Q&A & Quality Gate",
+        sub: "EVALUATION & DATA QUALITY GATE • baseline_answers.json",
+        summary: "Thực tế 10 câu hỏi testset chạy trên ChromaDB sạch: AI tìm đúng tài liệu 10/10 lần, Token F1 đạt điểm tuyệt đối 1.0000.",
+        tableHeaders: ["Mã Test", "Loại Câu Hỏi", "Câu Hỏi Thực Tế", "Kết Quả AI Trả Lời", "Hit", "Token F1"],
+        tableRows: [
+          ["test-001", "Summary", "What is the main contribution of 'Continuous Benchmark Evaluation'?", "Static benchmarks fail to capture domain drift in enterprise knowledge bases.", "TRUE", "1.00"],
+          ["test-002", "Summary", "What is the main contribution of 'Multi-Agent Consensus'?", "A single LLM is susceptible to confirmation bias when evaluating retrieved evidence.", "TRUE", "1.00"],
+          ["test-003", "Summary", "What is the main contribution of 'Freshness SLAs'?", "We define freshness service-level agreements (SLAs) for temporal document ingestion.", "TRUE", "1.00"],
+          ["test-004", "Authors", "Who authored the paper 'Synthetic Corruption Testing'?", "Tuan Phan, Mai Bui", "TRUE", "1.00"],
+          ["test-005", "Authors", "Who authored the paper 'Data Observability and Quality Gates'?", "An Tran, Minh Nguyen", "TRUE", "1.00"],
+          ["test-006", "Authors", "Who authored 'Semantic Layer Integration for Agentic Text-to-SQL'?", "Khoa Pham, Dung Vu", "TRUE", "1.00"],
+          ["test-007", "Date", "When was 'Continuous Benchmark Evaluation' published?", "2026-07-22", "TRUE", "1.00"],
+          ["test-008", "Date", "When was 'Multi-Agent Consensus' published?", "2026-07-19", "TRUE", "1.00"],
+          ["test-009", "Categories", "What categories does 'Freshness SLAs' belong to?", "Data Management, Artificial Intelligence", "TRUE", "1.00"],
+          ["test-010", "Categories", "What categories does 'Synthetic Corruption Testing' belong to?", "Evaluation Methodology, Machine Learning", "TRUE", "1.00"]
+        ],
+        metrics: {
+          "Retrieval Hit Rate": "1.0000 (10/10 câu hỏi trúng tài liệu gốc)",
+          "Mean Token F1": "1.0000 (Độ trùng khớp từ vựng hoàn hảo)",
+          "LLM Judge Accuracy": "1.0000 (100% đúng nội dung ngữ nghĩa)",
+          "Great Expectations": "PASSED (6/6 checks thành công)",
+          "Freshness SLA": "FRESH (Chỉ có 4.17% bài > 180 ngày <= ngưỡng 25%)"
+        },
+        code: `bundle = evaluate_pipeline(settings, index, test_set_path)
+quality = run_data_quality_checks(clean_df, settings, "baseline")
+freshness = build_freshness_report(clean_df, settings, ...)`
+      },
+      4: {
+        title: "4. Dữ Liệu Bị Tiêm 6 Lỗi & Suy Giảm Hiệu Năng",
+        sub: "DATA CORRUPTION & SILENT FAILURE • corruption_log.json",
+        summary: "Bảng ghi nhận chính xác 6 kịch bản tiêm lỗi và hậu quả thực tế: AI bị mù tri thức, Hit Rate sụt giảm nghiêm trọng từ 1.0 xuống 0.5000!",
+        tableHeaders: ["Kịch Bản Lỗi", "Hành Động Can Thiệp", "Các Bài Báo Bị Tác Động Thực Tế", "Hậu Quả Lên AI"],
+        tableRows: [
+          ["1. Drop latest records", "Xóa 20% bài mới nhất (5 bài)", "10.1145/...812, ...808, ...804, ...807, ...802", "Mất tri thức bài mới: Hit Rate giảm từ 1.0 xuống 0.5000!"],
+          ["2. Blank summary", "Xóa rỗng tóm tắt 2 bài", "10.1145/...824, 10.1145/...823", "AI trả về chuỗi rỗng: Token F1 = 0.0, GX báo FAILED!"],
+          ["3. Inject noise", "Chèn rác ### NOISE_CORRUPTION ###", "10.1145/...822, 10.1145/...821", "Làm sai lệch cosine vector similarity trong ChromaDB"],
+          ["4. Truncate title", "Cắt ngắn tiêu đề < 8 ký tự", "10.1145/...810 ('Automat'), ...820 ('Advance')", "Phá hủy tìm kiếm chính xác exact match theo tiêu đề"],
+          ["5. Stale date", "Lùi ngày xuất bản về 365 ngày trước", "8 bài: ...819, ...818, ...817, ...816, ...815...", "Kích hoạt vi phạm Freshness SLA: Tỷ lệ cũ vọt lên 38.1% > 25%"],
+          ["6. Duplicate rows", "Nhân bản 2 dòng tạo trùng paper_id", "10.1145/...811, 10.1145/...806", "Kích hoạt vi phạm kiểm định GX ExpectColumnValuesToBeUnique"]
+        ],
+        metrics: {
+          "Tổng dòng sau khi lỗi": "21 dòng",
+          "Retrieval Hit Rate": "0.5000 (MẤT 50% TRI THỨC)",
+          "Mean Token F1": "0.8506 (Bị kéo tụt do tóm tắt rỗng & rác)",
+          "Great Expectations Status": "FAILED (Bị chặn bởi 2 luật: Uniqueness & Length)",
+          "Freshness SLA Status": "STALE (38.10% bài cũ vượt trần 25%)"
+        },
+        code: `# Bằng chứng suy giảm trong corrupted_answers.json:
+{
+  "id": "test-001",
+  "answer": "",
+  "retrieval_hit": false,
+  "token_f1": 0.0,
+  "judge": { "score": 1, "correct": false }
+}`
+      },
+      5: {
+        title: "5. Bảng So Sánh 3 Trạng Thái & Khôi Phục 100%",
+        sub: "IDEMPOTENT REPAIR & 3-STATE MATRIX • corruption_report.md",
+        summary: "Bảng đối chiếu định lượng khoa học 3 trạng thái chứng minh: Cơ chế Idempotent Repair từ snapshot thô giúp AI lấy lại 100% phong độ.",
+        tableHeaders: ["Chỉ Số Quan Sát", "1. Baseline (Sạch)", "2. Corrupted (Lỗi)", "3. Repaired (Đã Phục Hồi)", "Mức Độ Phục Hồi (Recovery)"],
+        tableRows: [
+          ["Retrieval Hit Rate", "1.0000", "0.5000 (-50%)", "1.0000", "+0.5000 (Hồi phục 100% về ban đầu)"],
+          ["Mean Token F1", "1.0000", "0.8506 (-15%)", "1.0000", "+0.1494 (Hồi phục 100% về ban đầu)"],
+          ["Judge Accuracy", "1.0000", "0.9000 (-10%)", "1.0000", "+0.1000 (Hồi phục 100% về ban đầu)"],
+          ["Mean Judge Score", "5.00 / 5.0", "4.20 / 5.0", "5.00 / 5.0", "+0.80 điểm đánh giá ngữ nghĩa"],
+          ["Great Expectations 1.x", "PASSED (6/6)", "FAILED (Trùng lặp, rỗng)", "PASSED (6/6)", "Khôi phục toàn vẹn 6 hàng rào kiểm dịch"],
+          ["Freshness SLA (<=180d)", "FRESH (4.17% cũ)", "STALE (38.10% cũ)", "FRESH (4.17% cũ)", "Khôi phục tính thời sự của kho tri thức"]
+        ],
+        metrics: {
+          "Cơ chế sửa": "Idempotent Repair từ crossref_records.json bất biến",
+          "Số dòng phục hồi": "24 dòng sạch",
+          "Vector Collection mới": "papers-repaired",
+          "Báo cáo đối chiếu": "data/reports/corruption_report.md"
+        },
+        code: `def repair_from_raw_snapshot(settings: Settings) -> pd.DataFrame:
+    raw_records = load_raw_records(settings.paths.raw_records_json)
+    repaired_df = build_clean_dataframe(raw_records, datetime.now(timezone.utc))
+    repaired_df.to_csv(settings.paths.clean_csv, index=False)
+    return repaired_df`
+      }
+    };
+
+    let currentStage = 1;
+    let currentTab = 'data';
+
+    function selectStage(stageId) {
+      currentStage = stageId;
+
+      // Update card visual selection
+      for (let i = 1; i <= 5; i++) {
+        const card = document.getElementById(`card-stage${i}`);
+        if (card) {
+          if (i === stageId) card.classList.add('active');
+          else card.classList.remove('active');
+        }
+      }
+
+      renderInspector();
+    }
+
+    function setInspectorTab(tabName) {
+      currentTab = tabName;
+      document.querySelectorAll('.nav-tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(`tab-btn-${tabName}`).classList.add('active');
+      renderInspector();
+    }
+
+    function renderInspector() {
+      const data = LIVE_DATA[currentStage];
+      if (!data) return;
+
+      document.getElementById('ins-title').innerText = data.title;
+      document.getElementById('ins-sub').innerText = data.sub;
+
+      const container = document.getElementById('ins-content');
+
+      if (currentTab === 'data') {
+        let ths = data.tableHeaders.map(h => `<th>${h}</th>`).join('');
+        let trs = data.tableRows.map(row => {
+          let tds = row.map((cell, idx) => {
+            if (cell === 'TRUE') return `<td><span class="pill-hit hit-true">TRUE</span></td>`;
+            if (cell === 'FALSE') return `<td><span class="pill-hit hit-false">FALSE</span></td>`;
+            return `<td>${cell}</td>`;
+          }).join('');
+          return `<tr>${tds}</tr>`;
+        }).join('');
+
+        container.innerHTML = `
+          <div style="font-size:13px; color:#cbd5e1; line-height:1.5; background:rgba(56,189,248,0.06); border:1px solid rgba(56,189,248,0.2); padding:10px 14px; border-radius:6px;">
+            💡 <strong>Tóm tắt dữ liệu:</strong> ${data.summary}
+          </div>
+
+          <div class="data-table-container">
+            <table class="data-preview-table">
+              <thead><tr>${ths}</tr></thead>
+              <tbody>${trs}</tbody>
+            </table>
+          </div>
+        `;
+      } else if (currentTab === 'metrics') {
+        let rows = '';
+        for (const [k, v] of Object.entries(data.metrics)) {
+          rows += `
+            <div class="info-row">
+              <span class="k">${k}</span>
+              <span class="v" style="color: ${v.includes('FAIL') || v.includes('MẤT') || v.includes('0.5') ? '#f87171' : (v.includes('PASS') || v.includes('1.0') || v.includes('Hồi') ? '#4ade80' : '#f1f5f9')}">${v}</span>
+            </div>
+          `;
+        }
+
+        container.innerHTML = `
+          <div class="info-card">
+            ${rows}
+          </div>
+          <div style="font-size:12px; color:#94a3b8; line-height:1.6; padding:10px;">
+            Dữ liệu này được trích xuất trực tiếp từ các file kết quả thực nghiệm trong <code>data/results/</code> và <code>data/quality/</code> của hệ thống.
+          </div>
+        `;
+      } else if (currentTab === 'code') {
+        container.innerHTML = `
+          <pre class="json-code">${data.code}</pre>
+        `;
+      }
+    }
+
+    // Initialize on load
+    selectStage(1);
+  </script>
+</body>
+</html>

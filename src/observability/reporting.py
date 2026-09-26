@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
+
 from core.utils import write_text
 
 
@@ -13,32 +14,28 @@ def generate_phase1_report(
     freshness: dict[str, Any],
 ) -> None:
     """Generate Phase 1 Baseline markdown report."""
-    md = f"""# Phase 1 Baseline Report: Data Pipeline & Observability
+    content = f"""# Phase 1 Baseline Data Pipeline & Observability Report
 
-## 1. Raw Data Ingestion Summary
-- **Source API:** {source_summary.get('source_api', 'Crossref API')}
-- **Total Raw Records:** {source_summary.get('total_records', 0)}
+## 1. Data Source Summary
+- **Source API:** {source_summary.get('source_api', 'Crossref REST API')}
+- **Total Records Ingested:** {source_summary.get('total_records', 'N/A')}
 - **Freshness Threshold:** {source_summary.get('freshness_threshold_days', 180)} days
 
-## 2. Baseline Metrics
+## 2. Baseline Evaluation Metrics
 - **Retrieval Hit Rate:** {metrics.get('retrieval_hit_rate', 0.0):.4f}
 - **Mean Token F1:** {metrics.get('mean_token_f1', 0.0):.4f}
 - **Judge Accuracy:** {metrics.get('judge_accuracy', 0.0):.4f}
 - **Mean Judge Score:** {metrics.get('mean_judge_score', 0.0):.2f} / 5.0
 
-## 3. Data Observability & Quality Gate (GX 1.x)
-- **Quality Gate Success:** `{quality.get('success', False)}`
-- **Evaluated Expectations:** {quality.get('evaluated_expectations', 0)}
-- **Successful Expectations:** {quality.get('successful_expectations', 0)}
-
-## 4. Freshness SLA
-- **Is Fresh:** `{freshness.get('is_fresh', False)}`
-- **Total Rows:** {freshness.get('total_rows', 0)}
-- **Stale Rows (>180d):** {freshness.get('stale_rows', 0)} ({freshness.get('stale_ratio', 0.0)*100:.1f}%)
-- **Latest Published:** {freshness.get('latest_published')}
-- **Oldest Published:** {freshness.get('oldest_published')}
+## 3. Data Quality and Freshness
+- **Quality Check Status:** {"PASSED" if quality.get('success') else "FAILED"}
+- **Passed Checks:** {quality.get('successful_expectations', quality.get('passed_checks', 0))} / {quality.get('evaluated_expectations', quality.get('total_checks', 0))}
+- **Freshness SLA Status:** {"FRESH" if freshness.get('is_fresh') else "STALE"}
+- **Stale Ratio (>180 days):** {freshness.get('stale_ratio', 0.0):.2%}
+- **Latest Published Date:** {freshness.get('latest_published', 'N/A')}
+- **Oldest Published Date:** {freshness.get('oldest_published', 'N/A')}
 """
-    write_text(report_path, md)
+    write_text(report_path, content)
 
 
 def generate_corruption_report(
@@ -51,23 +48,37 @@ def generate_corruption_report(
     corrupted_freshness: dict[str, Any],
     repaired_freshness: dict[str, Any],
 ) -> None:
-    """Generate markdown report comparing Baseline vs Corrupted vs Repaired states."""
-    md = f"""# Data Corruption & Idempotent Repair Report
+    """Generate report comparing baseline, corrupted, and repaired states."""
+    metric_keys = (
+        ("Retrieval Hit Rate", "retrieval_hit_rate", ".4f"),
+        ("Mean Token F1", "mean_token_f1", ".4f"),
+        ("Judge Accuracy", "judge_accuracy", ".4f"),
+        ("Mean Judge Score", "mean_judge_score", ".2f"),
+    )
 
-## 📊 3-State Performance Comparison Matrix
+    rows = []
+    for label, key, number_format in metric_keys:
+        baseline = baseline_metrics.get(key, 0.0)
+        corrupted = corrupted_metrics.get(key, 0.0)
+        repaired = repaired_metrics.get(key, 0.0)
+        rows.append(
+            f"| **{label}** | `{baseline:{number_format}}` "
+            f"| `{corrupted:{number_format}}` | `{repaired:{number_format}}` |"
+        )
 
-| Metric / Signal | Baseline | Corrupted | Repaired | Analysis & Impact |
-| :--- | :---: | :---: | :---: | :--- |
-| **Retrieval Hit Rate** | `{baseline_metrics.get('retrieval_hit_rate', 0.0):.4f}` | `{corrupted_metrics.get('retrieval_hit_rate', 0.0):.4f}` | `{repaired_metrics.get('retrieval_hit_rate', 0.0):.4f}` | Corruption drops retrieval hit rate; Repair restores full accuracy. |
-| **Mean Token F1** | `{baseline_metrics.get('mean_token_f1', 0.0):.4f}` | `{corrupted_metrics.get('mean_token_f1', 0.0):.4f}` | `{repaired_metrics.get('mean_token_f1', 0.0):.4f}` | Token overlap degrades when text is noisy/blanked. |
-| **Judge Accuracy** | `{baseline_metrics.get('judge_accuracy', 0.0):.4f}` | `{corrupted_metrics.get('judge_accuracy', 0.0):.4f}` | `{repaired_metrics.get('judge_accuracy', 0.0):.4f}` | LLM evaluator flags poor quality in corrupted state. |
-| **Mean Judge Score** | `{baseline_metrics.get('mean_judge_score', 0.0):.2f}` | `{corrupted_metrics.get('mean_judge_score', 0.0):.2f}` | `{repaired_metrics.get('mean_judge_score', 0.0):.2f}` | Qualitative score drops significantly under corruption. |
-| **Quality Gate Status** | `PASS (True)` | `FAIL ({corrupted_quality.get('success', False)})` | `PASS ({repaired_quality.get('success', False)})` | Great Expectations 1.x successfully detects silent failures. |
-| **Freshness Status** | `{repaired_freshness.get('is_fresh', True)}` | `{corrupted_freshness.get('is_fresh', False)}` | `{repaired_freshness.get('is_fresh', True)}` | Freshness SLA alerts when stale records are injected. |
+    content = f"""# Data Corruption and Repair Report
 
-## 🔍 Key Findings & Idempotent Self-Healing
-1. **Silent Failure Demonstration:** Without Data Quality Gates, corrupted text degrades LLM answers silently without raising runtime code exceptions.
-2. **Observability Alerting:** Great Expectations 1.x caught title length truncation and un-uniqueness errors.
-3. **Idempotent Repair:** Fetching fresh records from trusted Raw snapshot completely restored system metrics to baseline.
+## 1. Performance Comparison
+
+| Metric | Baseline | Corrupted | Repaired |
+|---|---:|---:|---:|
+{chr(10).join(rows)}
+| **Quality Checks** | `PASS` | `{'PASS' if corrupted_quality.get('success') else 'FAIL'}` | `{'PASS' if repaired_quality.get('success') else 'FAIL'}` |
+| **Freshness** | `N/A` | `{'FRESH' if corrupted_freshness.get('is_fresh') else 'STALE'}` | `{'FRESH' if repaired_freshness.get('is_fresh') else 'STALE'}` |
+
+## 2. Findings
+- Corruption can reduce retrieval and answer quality without causing a runtime error.
+- Quality checks detect corrupted data before it is used.
+- Repair from the trusted raw snapshot should restore data quality and agent metrics.
 """
-    write_text(report_path, md)
+    write_text(report_path, content)
