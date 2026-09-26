@@ -6,10 +6,10 @@
 
 | Thông tin         | Nội dung                  |
 | ------------------ | -------------------------- |
-| Khóa/Lớp         | [K3 hoặc K4]              |
-| Tên nhóm         | [Tên hoặc mã nhóm]     |
-| Repository         | [Đường dẫn repository] |
-| Ngày hoàn thành | [YYYY-MM-DD]               |
+| Khóa/Lớp         | K4              |
+| Tên nhóm         | chuadatten     |
+| Repository         | https://github.com/tom-e666/K4-L3B-DAY10-chuadatten-DataPipelineDataObservability |
+| Ngày hoàn thành | 2026-09-26               |
 
 ### Thành viên và phân công
 
