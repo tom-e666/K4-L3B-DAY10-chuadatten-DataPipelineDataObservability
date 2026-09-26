@@ -6,11 +6,11 @@
 
 | Thông tin         | Nội dung                  |
 | ------------------ | -------------------------- |
-| Họ và tên       | [Họ và tên]             |
-| MSSV               | [MSSV]                     |
-| Khóa/Lớp         | [K3 hoặc K4]              |
-| Tên nhóm         | [Tên hoặc mã nhóm]     |
-| Vai trò chính    | [Vai trò]                 |
+| Họ và tên       | Nguyễn Đức Long             |
+| MSSV               | 2A202602917                |
+| Khóa/Lớp         | 3b                        |
+| Tên nhóm         | group1     |
+| Vai trò chính    | Thực hiện giám sát chuất lượng dữ liệu          |
 | Repository         | [Đường dẫn repository] |
 | Ngày hoàn thành | [YYYY-MM-DD]               |
 
@@ -18,18 +18,19 @@
 
 ### Phần việc sở hữu
 
-| Module/deliverable | File/hàm phụ trách | Input nhận vào | Output bàn giao  | Trạng thái                                 |
+| Module/deliverable | File/hàm phụ trách | Input nhận vào | Output bàn giao  | Trạng thái |
 | ------------------ | --------------------- | ---------------- | ----------------- | -------------------------------------------- |
-| [Phần việc]      | [File/hàm]           | [Input]          | [Output/artifact] | [Hoàn thành/Một phần/Chưa hoàn thành] |
-| [Phần việc]      | [File/hàm]           | [Input]          | [Output/artifact] | [Hoàn thành/Một phần/Chưa hoàn thành] |
+| Observability Gate (GX 1.x) & Freshness SLA | `src/observability/quality.py` (`run_data_quality_checks`, `build_freshness_report`) | Cleaned pandas DataFrame (`df` từ `cleaning.py` gồm `paper_id`, `title`, `summary`, `text_for_embedding`, `age_days`) | `baseline_quality_report.json`, `corrupted_quality_report.json`, `freshness_report.json` | Hoàn thành |
+| Markdown Observability Reporting | `src/observability/reporting.py` (`generate_phase1_report`, `generate_corruption_report`) | Source summary, Evaluation metrics dicts (baseline, corrupted, repaired), Quality & Freshness results | `data/reports/phase1_report.md`, `data/reports/corruption_report.md` (Báo cáo đối chiếu 3 trạng thái) | Hoàn thành |
 
 Chỉ nhận ownership cho phần bạn trực tiếp thực hiện. Liên hệ rõ phần việc của bạn với đầu vào, đầu ra và các thành viên phụ thuộc vào phần đó.
 
 ### Việc hỗ trợ ngoài phạm vi chính
 
-| Hoạt động                         | Thành viên/module được hỗ trợ | Kết quả                    |
+| Hoạt động | Thành viên/module được hỗ trợ | Kết quả |
 | ------------------------------------ | ------------------------------------ | ---------------------------- |
-| [Debug/tích hợp/tài liệu] | [Tên hoặc module] | [Kết quả và bằng chứng] |
+| Kiểm thử độc lập & viết script test tự động cho Observability | Pipeline Integrator / Cả nhóm | Viết `test_quality_standalone.py` & `test_reporting_standalone.py` xác minh logic chốt kiểm soát dữ liệu |
+| Xây dựng tài liệu hướng dẫn từng bước | Cả nhóm | Tạo file `HUONG_DAN_CHI_TIET_LAB10.md` tóm tắt mốc checkpoints & câu lệnh kiểm tra |
 
 ## 3. Kết quả theo vai trò
 
