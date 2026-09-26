@@ -145,7 +145,7 @@ Hoàn thành hai chuỗi nguyên nhân–bằng chứng sau:
 3. **Data Observability song hành AI Observability:** Cần phải giám sát đồng thời cả hai lớp: lớp chất lượng dữ liệu và lớp hiệu năng mô hình.
 
 ### Nếu có thêm thời gian
-- Xây dựng cơ chế **Automated Circuit Breaker**: Tự động chặn việc đánh chỉ mục vector (ngắt pipeline ngay lập tức) nếu Data Quality Gate phát hiện `success = False` hoặc Freshness SLA bị vi phạm, thay vì cho phép dữ liệu bẩn tiếp tục đi vào ChromaDB phục vụ người dùng. Đo lường hiệu quả qua việc giảm thiểu số lượng truy vấn AI bị ảnh hưởng khi có sự cố dữ liệu.
+- Xây dựng cơ chế **Automated Circuit Breaker**: Tự động chặn việc đánh chỉ mục vector (ngắt pipeline ngay lập tức) nếu Data Quality Gate phát hiện success = False hoặc Freshness SLA bị vi phạm, thay vì cho phép dữ liệu bẩn tiếp tục đi vào ChromaDB phục vụ người dùng. Đo lường hiệu quả qua việc giảm thiểu số lượng truy vấn AI bị ảnh hưởng khi có sự cố dữ liệu.
 
 ## 10. Cam kết của thành viên
 
